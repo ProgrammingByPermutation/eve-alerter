@@ -1,0 +1,1 @@
+C:\src\git\eve-alerter\scripts\v.ahk

@@ -1,8 +1,9 @@
+import ctypes
 import time
 from datetime import datetime, timedelta
 
 from PIL import ImageGrab
-from playsound import playsound
+from playsound3 import playsound
 from pytesseract import pytesseract
 import win32gui
 from functools import partial
@@ -12,28 +13,29 @@ import numpy as np
 import os
 
 # Things to change
-PILOT_MAX_TIME_IN_AREA = 90
+PILOT_MAX_TIME_IN_AREA = 20
 DELAY_BETWEEN_ALERTS = 300
 
 # Things that don't change much
-my_names = ['oxcanteven', 'oxcantéven', 'gxcant&ven', 'oxcant&ven', 'oxcant', 'dxcanteven', 'canteven', 'oxtantéven']
+my_names = ['oxcanteven', 'oxcantéven', 'gxcant&ven', 'oxcant&ven', 'oxcant', 'dxcanteven', 'canteven', 'oxtantéven', 'daddy\'s good boy', 'naddy\'s good boy']
 ImageGrab.grab = partial(ImageGrab.grab, all_screens=True)
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
-def get_text_from_image(raw_image):
+def get_text_from_image(raw_image, x, y, width, height, showDialog=False):
     one = np.array(raw_image)
-    two = cv2.cvtColor(one, cv2.COLOR_RGB2GRAY)
+    # two = cv2.cvtColor(one, cv2.COLOR_RGB2GRAY)
+    # thresh = 255 - cv2.threshold(two, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    # x, y, width, height = -1465, 706, 122, 375
+    x -= 5
+    y -= 5
+    ROI = one[y:y + height, x:x + width]
+    data = pytesseract.image_to_string(ROI, lang='eng')
 
-    thresh = 255 - cv2.threshold(two, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-
-    x, y, w, h = 415, 300, 125, 250
-    ROI = thresh[y:y + h, x:x + w]
-    data = pytesseract.image_to_string(ROI)
-
-    # cv2.imshow('thresh', thresh)
-    #cv2.imshow('ROI', ROI)
-    #cv2.waitKey()
+    if showDialog:
+        # cv2.imshow('thresh', thresh)
+        cv2.imshow('ROI', ROI)
+        cv2.waitKey()
 
     return data
 
@@ -56,9 +58,9 @@ def get_eve_screenshot():
     return ImageGrab.grab(bbox)
 
 
-def get_list_of_chatters():
+def get_list_of_chatters(x, y, width, height, showDialog=False):
     image = get_eve_screenshot()
-    text = get_text_from_image(image)
+    text = get_text_from_image(image, x, y, width, height, showDialog)
     return [x.strip().lower() for x in str(text).strip().split('\n') if x.strip() != '']
 
 
@@ -116,15 +118,49 @@ def get_users_greater_than(people_alerts, max_seconds):
 
     return ret
 
+def DetectClick(button, watchtime = 5):
+    '''Waits watchtime seconds. Returns True on click, False otherwise'''
+    if button in (1, '1', 'l', 'L', 'left', 'Left', 'LEFT'):
+        bnum = 0x01
+    elif button in (2, '2', 'r', 'R', 'right', 'Right', 'RIGHT'):
+        bnum = 0x02
+
+    time.sleep(1)
+    start = time.time()
+    while 1:
+        if ctypes.windll.user32.GetKeyState(bnum) not in [0, 1]:
+            # ^ this returns either 0 or 1 when button is not being held down
+            return True
+        elif time.time() - start >= watchtime:
+            break
+        time.sleep(0.001)
+    return False
+
 
 if __name__ == '__main__':
     people_alerts = {}
     last_alarm = datetime.now() - timedelta(seconds=DELAY_BETWEEN_ALERTS)
+    import pyautogui
+
+    retry = True
+    while retry:
+        retry = False
+        print('Click upper left hand corner to capture')
+        DetectClick(1, 30)
+        upperLeft = pyautogui.position()
+        print(upperLeft)
+        print('Click bottom right hand corner to capture')
+        DetectClick(1, 30)
+        bottomRight = pyautogui.position()
+        width = abs(bottomRight.x - upperLeft.x)
+        height = abs(bottomRight.y - upperLeft.y)
+        print(f'Coordinates: {bottomRight} Width: {width} Height: {height}')
+        get_list_of_chatters(upperLeft.x, upperLeft.y, width, height, True)
 
     while True:
         try:
             # Get the list of users
-            all_people = get_list_of_chatters()
+            all_people = get_list_of_chatters(upperLeft.x, upperLeft.y, width, height)
             update_person_alerts(people_alerts, all_people)
             output_alert_list(people_alerts)
 
