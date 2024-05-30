@@ -48,14 +48,15 @@ def get_eve_screenshot():
 
     win32gui.EnumWindows(enum_cb, toplist)
 
-    firefox = [(hwnd, title) for hwnd, title in winlist if 'eve - ' in title.lower()]
-    # just grab the hwnd for first window matching firefox
-    firefox = firefox[0]
-    hwnd = firefox[0]
+    # just grab the hwnd for first window matching eve online for the main character
+    for firefox in [(hwnd, title) for hwnd, title in winlist if 'eve - ttv oxcanteven' in title.lower()]:
+        hwnd = firefox[0]
 
-    # win32gui.SetForegroundWindow(hwnd)
-    bbox = win32gui.GetWindowRect(hwnd)
-    return ImageGrab.grab(bbox)
+        # win32gui.SetForegroundWindow(hwnd)
+        bbox = win32gui.GetWindowRect(hwnd)
+        if bbox[2] - bbox[0] < 1000:
+            continue
+        return ImageGrab.grab(bbox)
 
 
 def get_list_of_chatters(x, y, width, height, showDialog=False):
